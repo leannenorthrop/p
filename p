@@ -8,7 +8,7 @@ BREAK_LOG=${LOGFILE-$HOME/.p-break.log}
 DATE_FORMAT="%Y-%m-%d %T %z"
 
 # 1500 = 25 Mins of work
-POMODORO_LENGTH_IN_SECONDS=15
+POMODORO_LENGTH_IN_SECONDS=150
 
 # 300 = 5 Mins Short Break
 POMODORO_BREAK_IN_SECONDS=300
@@ -245,8 +245,13 @@ function statusIcon
         fi
       fi
     else
-# if external interrupted then    else internal interrupt 
       ICON=""
+      if [ "$INTERNAL_INTERRUPTION_MARKER" == "$INTERRUPTIONS" ]; then
+        ICON=" "
+      fi
+      if [ "$EXTERNAL_INTERRUPTION_MARKER" == "$INTERRUPTIONS" ]; then
+        ICON=" "
+      fi
     fi
   fi
 }
@@ -272,10 +277,6 @@ function breakType
   else
     BREAK="SHORT"
   fi
-}
-
-function interruptType {
-  echo $INTERRUPTIONS
 }
 
 case "$1" in
