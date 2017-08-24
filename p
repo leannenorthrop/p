@@ -266,12 +266,16 @@ function countCompletedPomodoros
 function breakType
 {
   countCompletedPomodoros
-  ISREADY=$(expr $COMPLETED_POMODOROS % 4)
+  ISREADY=$(($COMPLETED_POMODOROS % 4))
   if [ "$ISREADY" == "0" ]; then
     BREAK="LONG"
   else
     BREAK="SHORT"
   fi
+}
+
+function interruptType {
+  echo $INTERRUPTIONS
 }
 
 case "$1" in
