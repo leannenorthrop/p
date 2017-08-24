@@ -3,10 +3,23 @@
 set -e
 
 LOG=${LOGFILE-$HOME/.p.log}
+BREAK_LOG=${LOGFILE-$HOME/.p-break.log}
+
 DATE_FORMAT="%Y-%m-%d %T %z"
-POMODORO_LENGTH_IN_SECONDS=1500
+
+# 1500 = 25 Mins of work
+POMODORO_LENGTH_IN_SECONDS=15
+
+# 300 = 5 Mins Short Break
 POMODORO_BREAK_IN_SECONDS=300
-PREFIX="🍅 "
+
+# 1800 = 30 Mins of Long Break
+POMODORO_LONG_BREAK_IN_SECONDS=1800
+
+# 3000 = 50 Mins
+POMODORO_AWAY_IN_SECONDS=3000
+
+PREFIX=""
 TMPFILE=/tmp/p-${RANDOM}
 INTERNAL_INTERRUPTION_MARKER="'"
 EXTERNAL_INTERRUPTION_MARKER="-"
@@ -32,6 +45,17 @@ function convertTimeFormat
   fi
 }
 
+function nowFormattted
+{
+  OUTPUT_FORMAT="$1"
+  $DATE --version 2>&1 | grep "GNU coreutils" > /dev/null
+  if [ "$?" == "0" ]; then
+    $DATE "+$OUTPUT_FORMAT"
+  else
+    $DATE -f "$OUTPUT_FORMAT"
+  fi
+}
+
 function checkLastPomodoro
 {
   if [ -s "$LOG" ]; then
@@ -44,6 +68,13 @@ function checkLastPomodoro
     SECONDS_ELAPSED=$((TIMESTAMP_NOW - TIMESTAMP_RECENT))
     if (( $SECONDS_ELAPSED >= $POMODORO_LENGTH_IN_SECONDS )); then
       POMODORO_FINISHED=1
+      breakType
+      startBreak
+      BREAK_RECENT=$(tail -1 ${BREAK_LOG})
+      BREAK_TIME=$(echo $BREAK_RECENT | cut -d ',' -f 1)
+      BREAK_TIMESTAMP_RECENT=$(convertTimeFormat "$BREAK_TIME" "+%s")
+      BREAK_TIMESTAMP_NOW=$($DATE "+%s")
+      BREAK_SECONDS_ELAPSED=$((BREAK_TIMESTAMP_NOW - BREAK_TIMESTAMP_RECENT))
     else
       POMODORO_FINISHED=0
     fi
@@ -74,6 +105,14 @@ function interrupt
   else
     echo "No pomodoro to interrupt"
     exit 1
+  fi
+}
+
+function startBreak
+{
+  type=$1
+  if [ "$POMODORO_FINISHED" == "1" ]; then
+    echo $TIME,$type,$THING >> "$BREAK_LOG"
   fi
 }
 
@@ -142,6 +181,99 @@ function showStatus
   fi
 }
 
+function shortShowStatus
+{
+  checkLastPomodoro
+  statusIcon
+  if [ -z $NO_RECORDS ]; then
+    if [ "$POMODORO_FINISHED" == "1" ]; then
+      if (( $BREAK_SECONDS_ELAPSED < $POMODORO_BREAK_IN_SECONDS )); then
+        if [ "$BREAK" == "SHORT" ]; then
+          REMAINING=$((POMODORO_BREAK_IN_SECONDS - BREAK_SECONDS_ELAPSED))
+        else
+          REMAINING=$((POMODORO_LONG_BREAK_IN_SECONDS - BREAK_SECONDS_ELAPSED))
+        fi
+      else
+        if (( $BREAK_SECONDS_ELAPSED < $POMODORO_LONG_BREAK_IN_SECONDS )); then
+          if [ "$BREAK" == "SHORT" ]; then
+            REMAINING=$((0))
+          else
+            REMAINING=$((POMODORO_LONG_BREAK_IN_SECONDS - BREAK_SECONDS_ELAPSED))
+          fi
+        else
+          if (( $BREAK_SECONDS_ELAPSED < $POMODORO_AWAY_IN_SECONDS )); then
+            REMAINING=$((0))
+          else
+            REMAINING=$((0))
+          fi
+        fi
+      fi
+
+      TIME=$(printf '%dm:%ds' $(($REMAINING%3600/60)) $(($REMAINING%60)))
+      echo -e "$ICON $TIME"
+    else
+      REMAINING=$((POMODORO_LENGTH_IN_SECONDS - SECONDS_ELAPSED))
+      TIME=$(printf '%dm:%ds' $(($REMAINING%3600/60)) $(($REMAINING%60)))
+      echo -e "$ICON $TIME"
+    fi
+  fi
+}
+
+function statusIcon
+{
+  if [ -z $NO_RECORDS ]; then
+    if [ "$POMODORO_FINISHED" == "1" ]; then
+      if (( $BREAK_SECONDS_ELAPSED < $POMODORO_BREAK_IN_SECONDS )); then
+        if [ "$BREAK" == "SHORT" ]; then
+          ICON=""
+        else
+          ICON=""
+        fi
+      else
+        if (( $BREAK_SECONDS_ELAPSED < $POMODORO_LONG_BREAK_IN_SECONDS )); then
+          if [ "$BREAK" == "SHORT" ]; then
+            ICON=""
+          else
+            ICON=""
+          fi
+        else
+          if (( $BREAK_SECONDS_ELAPSED < $POMODORO_AWAY_IN_SECONDS )); then
+            ICON=""
+          else
+            ICON=""
+          fi
+        fi
+      fi
+    else
+# if external interrupted then    else internal interrupt 
+      ICON=""
+    fi
+  fi
+}
+
+function countCompletedPomodoros
+{
+  TODAY=$(nowFormattted $DATE_FORMAT)
+  if [ -z $NO_RECORDS ]; then
+     if [ "$POMODORO_FINISHED" == "1" ]; then
+       COMPLETED_POMODOROS=$(sed -e "/$TODAY/!d" ${LOG} | wc -l - | cut -s -f 1 -d " " -)
+     else
+       COMPLETED_POMODOROS=$(tail -1 ${LOG} | sed -e "/$TODAY/!d" - | wc -l - | cut -s -f 1 -d " " -)
+     fi
+  fi
+}
+
+function breakType
+{
+  countCompletedPomodoros
+  ISREADY=$(expr $COMPLETED_POMODOROS % 4)
+  if [ "$ISREADY" == "0" ]; then
+    BREAK="LONG"
+  else
+    BREAK="SHORT"
+  fi
+}
+
 case "$1" in
   start | s)
     cancelRunningPomodoro "Last Pomodoro cancelled"
@@ -158,6 +290,9 @@ case "$1" in
     ;;
   wait | w)
     waitForCompletion "${*:2}" ""
+    ;;
+  short-status | ss)
+    shortShowStatus
     ;;
   loop)
     while true; do
