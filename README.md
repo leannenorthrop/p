@@ -1,10 +1,8 @@
-# `p` is for people who find that other pomodoro tools slow them down.
+# A fork of `p` which is for people who find that other pomodoro tools slow them down.
 
-[![Build Status](https://travis-ci.org/chrismdp/p.svg)](https://travis-ci.org/chrismdp/p)
+[![Build Status](https://travis-ci.org/leannenorthrop/p.svg?branch=master)](https://travis-ci.org/leannenorthrop/p)
 
-`p` is the fastest pomodoro tool you've ever used. It uses a simple tracking log file (`~/.p.log` by default) to keep track of your pomodoros and record simple statistics. It's less than 200 lines of pure Shell.
-
-![demo](https://raw.githubusercontent.com/chrismdp/p/master/demo.gif)
+`p` is the fastest pomodoro tool you've ever used. It uses a simple tracking log file (`~/.p.log` by default) to keep track of your pomodoros and record simple statistics, and break log file (`~/p-break.log` by default) to record breaks. It's less than 350 lines of pure Shell and has a new command for displaying a simple status of pomodoro workflow and time remaining in current pomodoro or long/short break.
 
 For more information on the pomodoro technique see http://pomodorotechnique.com.
 
@@ -44,7 +42,7 @@ Cancelled. Don't worry: the next Pomodoro will go better!
 
 ### Monitoring the Pomodoro
 
-To play a ringing sound (or do any other action) at the end of a pomodoro use a command such as this:
+To add pomodoro status to prompt can use `p ss`, or to play a ringing sound (or do any other action) at the end of a pomodoro use a command such as this:
 
 ```
 $ p wait && afplay ring.wav
